@@ -1,0 +1,5 @@
+name: default-enterprise-gate
+block_on:
+  critical_count: 1
+  high_count: 2
+minimum_risk_score_to_block: 85

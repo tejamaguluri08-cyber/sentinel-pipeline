@@ -1,0 +1,28 @@
+[
+  {
+    "scanner": "semgrep",
+    "type": "sast",
+    "title": "Potential SQL injection",
+    "severity": "critical",
+    "asset": "src/payments.py",
+    "cwe": "CWE-89",
+    "description": "User-controlled input is concatenated into a SQL query."
+  },
+  {
+    "scanner": "dependency-check",
+    "type": "sca",
+    "title": "Vulnerable dependency",
+    "severity": "high",
+    "asset": "requirements.txt",
+    "cve": "CVE-2025-0001",
+    "description": "Synthetic vulnerable dependency used for demonstration."
+  },
+  {
+    "scanner": "gitleaks",
+    "type": "secret",
+    "title": "Hardcoded token pattern",
+    "severity": "medium",
+    "asset": "config/example.env",
+    "description": "Synthetic secret-like pattern used for demonstration."
+  }
+]

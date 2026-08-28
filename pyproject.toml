@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sentinel-pipeline"
+version = "0.1.0"
+description = "AI-assisted DevSecOps security orchestration and policy-gating platform"
+requires-python = ">=3.10"
+dependencies = [
+  "PyYAML==6.0.2",
+  "Jinja2==3.1.5"
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
