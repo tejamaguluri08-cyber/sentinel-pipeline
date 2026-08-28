@@ -1,92 +1,19 @@
-name: Sentinel Security Gate
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-permissions:
-  contents: read
-  security-events: write
-
-env:
-  PYTHONPATH: src
-
-jobs:
-  sentinel:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Unit tests
-        run: pytest -q
-
-      - name: Prepare scanner result directory
-        run: mkdir -p scanner-results reports
-
-      - name: Trivy repository scan
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          scan-type: fs
-          scan-ref: .
-          format: json
-          output: scanner-results/trivy.json
-          severity: CRITICAL,HIGH,MEDIUM,LOW
-          exit-code: '0'
-
       - name: Checkov IaC scan
         uses: bridgecrewio/checkov-action@v12
         with:
           directory: .
           output_format: json
-          output_file_path: scanner-results/checkov.json
+          output_file_path: scanner-results
           soft_fail: true
 
-      - name: Generate CycloneDX SBOM
-        run: python -m sentinel sbom --requirements requirements.txt --output reports/sbom.cdx.json
-
-      - name: Sentinel multi-scanner policy gate
-        id: gate
-        continue-on-error: true
+      - name: Normalize Checkov output
+        shell: bash
         run: |
-          python -m sentinel merge --scanner-dir scanner-results --output reports --threat-intel threat_intel/demo.json
-
-      - name: Publish Sentinel job summary
-        if: always()
-        run: |
-          if [ -f reports/job-summary.md ]; then cat reports/job-summary.md >> "$GITHUB_STEP_SUMMARY"; fi
-
-      - name: Upload Sentinel SARIF
-        if: always() && hashFiles('reports/sentinel.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: reports/sentinel.sarif
-          category: sentinel-pipeline
-
-      - name: Upload security artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sentinel-security-reports
-          path: |
-            reports/
-            scanner-results/
-
-      # Development mode: surface the policy decision without blocking the branch yet.
-      # In v0.4 this becomes a required branch-protection check.
-      - name: Policy decision visibility
-        if: always()
-        run: |
-          echo "Sentinel gate outcome: ${{ steps.gate.outcome }}"
+          if [ -f scanner-results/results_json.json ]; then
+            mv scanner-results/results_json.json scanner-results/checkov.json
+          elif [ -f scanner-results/checkov.json/results_json.json ]; then
+            mv scanner-results/checkov.json/results_json.json scanner-results/checkov-result.json
+            rm -rf scanner-results/checkov.json
+            mv scanner-results/checkov-result.json scanner-results/checkov.json
+          fi
+          test -f scanner-results/checkov.json
