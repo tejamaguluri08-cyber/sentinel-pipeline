@@ -1,0 +1,4 @@
+{
+  "CVE-2024-0001": {"epss": 0.82, "kev": true, "source": "synthetic-demo"},
+  "CVE-2024-0002": {"epss": 0.12, "kev": false, "source": "synthetic-demo"}
+}

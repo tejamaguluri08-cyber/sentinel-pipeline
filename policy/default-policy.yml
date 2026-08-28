@@ -1,5 +1,6 @@
-name: default-enterprise-gate
 block_on:
   critical_count: 1
   high_count: 2
-minimum_risk_score_to_block: 85
+  kev_count: 1
+  epss_threshold: 0.70
+minimum_risk_score_to_block: 95
