@@ -1,3 +1,44 @@
+name: Security Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: write
+
+jobs:
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      # ---------------------------------------------------------
+      # 1. Checkout repository
+      # ---------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ---------------------------------------------------------
+      # 2. Create scanner results directory
+      # ---------------------------------------------------------
+      - name: Create scanner results directory
+        shell: bash
+        run: |
+          mkdir -p scanner-results
+
+      # ---------------------------------------------------------
+      # 3. Checkov - Infrastructure as Code scan
+      # ---------------------------------------------------------
       - name: Checkov IaC scan
         uses: bridgecrewio/checkov-action@v12
         with:
@@ -6,6 +47,9 @@
           output_file_path: scanner-results
           soft_fail: true
 
+      # ---------------------------------------------------------
+      # 4. Normalize Checkov output
+      # ---------------------------------------------------------
       - name: Normalize Checkov output
         shell: bash
         run: |
@@ -16,4 +60,39 @@
             rm -rf scanner-results/checkov.json
             mv scanner-results/checkov-result.json scanner-results/checkov.json
           fi
+
+          echo "Scanner results:"
+          ls -la scanner-results
+
           test -f scanner-results/checkov.json
+
+      # ---------------------------------------------------------
+      # 5. Upload Checkov results
+      # ---------------------------------------------------------
+      - name: Upload Checkov results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkov-results
+          path: scanner-results/checkov.json
+          if-no-files-found: warn
+
+      # ---------------------------------------------------------
+      # 6. Display scan summary
+      # ---------------------------------------------------------
+      - name: Security scan summary
+        if: always()
+        shell: bash
+        run: |
+          echo "======================================"
+          echo "       SECURITY PIPELINE SUMMARY"
+          echo "======================================"
+
+          if [ -f scanner-results/checkov.json ]; then
+            echo "Checkov scan completed successfully."
+            echo "Result file: scanner-results/checkov.json"
+          else
+            echo "Checkov result file was not generated."
+          fi
+
+          echo "======================================"
