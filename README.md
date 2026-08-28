@@ -1,111 +1,113 @@
 # Sentinel Pipeline
 
-**AI-assisted DevSecOps Security Orchestration & Remediation Platform**
+**AI-assisted DevSecOps Security Orchestration, Correlation, Policy Gating & Remediation**
 
-Sentinel Pipeline is a portfolio-grade security engineering project that demonstrates how modern CI/CD security controls can be orchestrated, normalized, policy-gated, and summarized into actionable remediation guidance.
+Sentinel Pipeline is a vendor-neutral security engineering platform that normalizes findings from multiple scanners, correlates duplicate risks, applies deterministic security gates, and produces developer-friendly remediation output.
 
-## What it does
+[![Sentinel Security Gate](https://github.com/tejamaguluri08-cyber/sentinel-pipeline/actions/workflows/security.yml/badge.svg)](https://github.com/tejamaguluri08-cyber/sentinel-pipeline/actions/workflows/security.yml)
 
-- Scans repositories for:
-  - SAST
-  - SCA / dependency risks
-  - secrets
-  - IaC issues
-  - container risks
-- Normalizes findings into one schema
-- Assigns risk scores
-- Applies deterministic policy gates
-- Produces JSON and HTML reports
-- Generates AI-ready remediation prompts without allowing AI to make enforcement decisions
-- Runs locally, in Docker, and in GitHub Actions
+## v0.2 capabilities
+
+- Semgrep adapter for SAST
+- Trivy adapter for container and dependency findings
+- Gitleaks adapter for secrets
+- Checkov adapter for IaC
+- normalized vulnerability schema
+- cross-scanner correlation
+- risk scoring
+- deterministic policy gates
+- SARIF output
+- HTML and JSON reports
+- GitHub Actions security workflow
+- AI-ready remediation context
 
 ## Architecture
 
 ```text
-              ┌─────────────────────┐
-              │   Source Repository │
-              └──────────┬──────────┘
-                         │
-                         ▼
-              ┌─────────────────────┐
-              │ Scanner Orchestrator│
-              └──────────┬──────────┘
-                         │
-       ┌─────────────────┼──────────────────┐
-       ▼                 ▼                  ▼
-   SAST/SCA          Secrets/IaC       Container
-       └─────────────────┼──────────────────┘
-                         ▼
-              ┌─────────────────────┐
-              │ Finding Normalizer  │
-              └──────────┬──────────┘
-                         ▼
-              ┌─────────────────────┐
-              │ Risk Scoring Engine │
-              └──────────┬──────────┘
-                         ▼
-              ┌─────────────────────┐
-              │ Policy Gate Engine  │
-              └──────┬────────┬─────┘
-                     │        │
-                  PASS      BLOCK
-                     │        │
-                     └───┬────┘
-                         ▼
-              ┌─────────────────────┐
-              │ Reports + Guidance  │
-              └─────────────────────┘
+Source / Pull Request
+        |
+        v
++-----------------------------+
+| Security Scanners           |
+| Semgrep | Trivy | Gitleaks  |
+| Checkov                     |
++-------------+---------------+
+              |
+              v
++-----------------------------+
+| Scanner Adapter Layer       |
++-------------+---------------+
+              |
+              v
++-----------------------------+
+| Finding Normalization       |
++-------------+---------------+
+              |
+              v
++-----------------------------+
+| Correlation + Risk Scoring  |
++-------------+---------------+
+              |
+              v
++-----------------------------+
+| Deterministic Policy Gate   |
++----------+----------+-------+
+           |          |
+         PASS       BLOCK
+           |
+           v
++-----------------------------+
+| SARIF | HTML | JSON         |
+| AI Remediation Context      |
++-----------------------------+
 ```
 
-## Quick start
+## Run locally
 
-```bash
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+```powershell
 pip install -r requirements.txt
+$env:PYTHONPATH="src"
 python -m sentinel scan --input sample_data/findings.json --output reports
 ```
 
-## Example
+## Parse native scanner output
 
-```bash
-python -m sentinel scan --input sample_data/findings.json --output reports
+```powershell
+python -m sentinel scan --adapter trivy --input trivy.json --output reports
+python -m sentinel scan --adapter semgrep --input semgrep.json --output reports
+python -m sentinel scan --adapter gitleaks --input gitleaks.json --output reports
+python -m sentinel scan --adapter checkov --input checkov.json --output reports
 ```
 
-The command produces:
+## Outputs
 
-- `reports/findings-normalized.json`
-- `reports/security-report.html`
-- `reports/policy-decision.json`
+```text
+reports/
+  findings-normalized.json
+  correlated-findings.json
+  policy-decision.json
+  sentinel.sarif
+  security-report.html
+```
 
-## Policy model
+## Design principle
 
-The default policy blocks builds when:
+AI may explain findings and recommend remediation, but AI does **not** decide whether a build passes. Enforcement stays deterministic, explicit, and auditable.
 
-- a `critical` finding exists, or
-- two or more `high` findings exist.
+## Portfolio disclaimer
 
-You can customize this in `policy/default-policy.yml`.
-
-## Why AI is not the enforcement engine
-
-Security gates should remain deterministic and auditable. Sentinel Pipeline uses AI only for explanation and remediation assistance. Policy decisions are made by explicit rules.
-
-## Portfolio focus
-
-This repository uses synthetic sample data and open-source tooling patterns only. It contains no employer code, credentials, URLs, proprietary configurations, or production data.
+This is an original portfolio implementation using synthetic sample data and public scanner formats. It contains no employer source code, internal URLs, credentials, confidential vulnerability data, or proprietary configurations.
 
 ## Roadmap
 
-- Native SARIF ingestion
-- Trivy/Semgrep/Gitleaks adapters
-- OPA/Rego policy support
-- FastAPI dashboard
-- GitHub PR annotations
-- Azure DevOps pipeline adapter
-- SBOM ingestion
-- EPSS/KEV enrichment
-- Optional LLM remediation provider
+- OPA/Rego policy-as-code
+- CycloneDX SBOM ingestion
+- EPSS + CISA KEV enrichment
+- GitHub pull-request annotations
+- Azure DevOps adapter
+- FastAPI service
+- dashboard UI
+- optional LLM provider integration
 
 ## License
 

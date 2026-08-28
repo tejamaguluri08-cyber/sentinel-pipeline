@@ -1,49 +1,49 @@
-import argparse
-import json
+import argparse, json
 from pathlib import Path
-
 from sentinel.normalize import normalize
 from sentinel.policy import load_policy, evaluate
 from sentinel.remediation import remediation_guidance, build_ai_prompt
 from sentinel.report import write_json, write_html
+from sentinel.correlation import correlate
+from sentinel.sarif import write_sarif
+from sentinel.adapters import ADAPTERS
 
-def run_scan(input_path: str, output_dir: str, policy_path: str) -> int:
-    with open(input_path, "r", encoding="utf-8") as f:
-        raw_findings = json.load(f)
+def _load_findings(input_path, adapter=None):
+    path=Path(input_path)
+    if adapter:
+        return ADAPTERS[adapter].parse(path)
+    return json.loads(path.read_text(encoding="utf-8"))
 
-    findings = [normalize(item) for item in raw_findings]
-    policy = load_policy(policy_path)
-    decision = evaluate(findings, policy)
+def run_scan(input_path, output_dir, policy_path, adapter=None):
+    raw=_load_findings(input_path, adapter)
+    findings=[normalize(x) for x in raw]
+    decision=evaluate(findings, load_policy(policy_path))
+    out=Path(output_dir); out.mkdir(parents=True, exist_ok=True)
 
-    output = Path(output_dir)
-    output.mkdir(parents=True, exist_ok=True)
-
-    normalized = []
+    normalized=[]
     for f in findings:
-        item = f.to_dict()
-        item["remediation"] = remediation_guidance(f)
-        item["ai_prompt"] = build_ai_prompt(f)
-        normalized.append(item)
+        x=f.to_dict()
+        x["remediation"]=remediation_guidance(f)
+        x["ai_prompt"]=build_ai_prompt(f)
+        normalized.append(x)
 
-    write_json(output / "findings-normalized.json", normalized)
-    write_json(output / "policy-decision.json", decision)
-    write_html("templates", output / "security-report.html", normalized, decision)
-
+    write_json(out/"findings-normalized.json", normalized)
+    write_json(out/"correlated-findings.json", correlate(findings))
+    write_json(out/"policy-decision.json", decision)
+    write_html("templates", out/"security-report.html", normalized, decision)
+    write_sarif(out/"sentinel.sarif", findings)
     print(json.dumps(decision, indent=2))
-    return 2 if decision["decision"] == "BLOCK" else 0
+    return 2 if decision["decision"]=="BLOCK" else 0
 
 def main():
-    parser = argparse.ArgumentParser(prog="sentinel")
-    sub = parser.add_subparsers(dest="command", required=True)
-
-    scan = sub.add_parser("scan", help="Normalize findings and evaluate the security gate")
+    p=argparse.ArgumentParser(prog="sentinel")
+    sub=p.add_subparsers(dest="command", required=True)
+    scan=sub.add_parser("scan")
     scan.add_argument("--input", required=True)
     scan.add_argument("--output", default="reports")
     scan.add_argument("--policy", default="policy/default-policy.yml")
-
-    args = parser.parse_args()
-
-    if args.command == "scan":
-        return run_scan(args.input, args.output, args.policy)
-
+    scan.add_argument("--adapter", choices=sorted(ADAPTERS))
+    a=p.parse_args()
+    if a.command=="scan":
+        return run_scan(a.input,a.output,a.policy,a.adapter)
     return 1
